@@ -1,0 +1,6 @@
+2.11 12-17-2001	WHDataCollector default operation (unknown command) returns "" rather
+		than "BYE" -- so invalid commands are silently discarded
+
+2.10 12-16-2001	WHConstants value for DB simplified to postgresl:wherehoo
+
+

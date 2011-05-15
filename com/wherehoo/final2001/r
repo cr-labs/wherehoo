@@ -1,0 +1,3 @@
+java -cp .:/usr/local/pgsql/share/java/jdbc7.1-1.1.jar WHServer &
+sleep 1
+telnet localhost 5859

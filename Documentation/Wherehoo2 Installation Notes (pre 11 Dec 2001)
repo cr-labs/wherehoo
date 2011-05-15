@@ -1,0 +1,78 @@
+WHEREHOO INSTALLATION NOTES
+
+
+Install Linux
+
+Install Java 1.3
+
+Install ANT (jakarta.apache.org/ant)
+	download the source, jakarta-ant-1.4.1.src.tar.gz
+	cd /tmp
+	tar -zxvf jakarta-ant-1.4.1.src.tar.gz
+
+	export ANT_HOME=/usr/local/ant   (or setenv /usr/local/ant)
+	export JAVA_HOME=/usr/local/jdk-1.3 (powerbook: setenv JAVA_HOME /usr)
+	export PATH=${PATH}:${ANT_HOME}/bin
+
+	./build.sh
+	./build.sh install
+
+
+Install Postgresql (postgresql.org, ftp://ftp3.us.postgresql.org)
+	cd /tmp
+	tar -zxvf postgresql-7.1.3.tar.gz
+	cd postgresql-7.1.3
+	(see INSTALL for much of the below)
+	(be sure path includes ANT's /bin directory - was exported above)
+	./configure --with-java
+	gmake
+	su
+	/usr/sbin/adduser postgres
+	gmake install (installs to /usr/local/pgsql)
+	cd /usr/local/pgsql
+	chown postgres * -R
+	su - postgres
+	(see INSTALL for the 4 init and startup commands)
+
+	/usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
+	/usr/local/pgsql/bin/postmaster -D /usr/local/pgsql/data >logfile 2>&1 &
+	/usr/local/pgsql/bin/createdb test
+	/usr/local/pgsql/bin/psql test
+
+	OR TO ADD TCP/IP ACCESS CHANGE LINE 2 ABOVE:
+	usr/local/pgsql/bin/postmaster -i -D /usr/local/pgsql/data >logfile 2>&1 &
+
+	OR FOR TCP ACCESS AND WORKABLE LOGGING (TO A DIR THAT USER 'postgres' CAN WRITE)
+	/usr/local/pgsql/bin/postmaster -i -D /usr/local/pgsql/data >/usr/local/pgsql/data/logfile 2>&1 &
+
+
+
+Databases are in:
+	/usr/local/pgsql/data/base/
+
+
+Dump in the data from the file datadir.tar
+	cd /usr/local/pgsql/data
+	tar -xvf datadir.tar
+	su
+	chown postgres * -R
+
+To access:
+	su postgres
+	bin/psql -d test
+
+Startup script
+	/etc/rc.d/init.d/postgresql (get from jyoull.dyndns.org)
+	add it in via chkconfig
+
+Install Wherehoo Server (WHServer)
+	/home/whserver (?)
+	classpath to postgresql drive
+
+WHEREHOO SERVER *MUST* USE THE 7.1-1.1 driver located in:
+	/usr/local/pgsql/share/java/jdbc7.1-1.1.jar
+
+Startup script for Wherehoo Server is:
+#!/bin/sh
+export CLASSPATH=.:/usr/local/pgsql/share/java/jdbc7.1-1.1.jar
+java WHServer &

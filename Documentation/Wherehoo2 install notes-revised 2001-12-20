@@ -1,0 +1,223 @@
+INSTALL NOTES - WHEREHOO
+LAST REVISION 2002-03-03
+
+--------------------------------------------------------
+Notes about these notes:
+
+This documents the major steps in the installation of a Wherehoo
+server on a Linux machine. Wherehoo is written in Java and 
+portable to other platforms. However Postgresql is also a key
+element of the latest Wherehoo server, so any other platform must
+also run Postgresql.
+
+Periodically in these notes there is a command of some sort followed
+by "(wherehoo.org: ....)" -- the test server at wherehoo.org is already
+running a version of Postgresql that cannot be shared, so the setup
+instructions for that machine are different than for most any other
+installation. In most cases, disregard any instructions that are only
+for wherehoo.org (unless you box is also running another copy of Postgresql
+that can't be shared!).
+--------------------------------------------------------
+
+0. Install and have working Linux - We used RedHat 7.1 or higher
+The ideal installation is a mix between "Server" and "Workstation". You need 
+server stuff, but it's also very important to install a GUI environment and 
+Netscape or other browser, as you will need to go to the web to download stuff
+
+--------------------------------------------------------
+1. Download Java 1.3.1 and install (Redhat RPM)
+(The way I did it at Adastral Park):
+	Installed JDK to /usr/java/jdk1.3.1_01
+	Alias "current" directory to the current Java:
+		cd /usr/java
+		ln -s jdk1.3.1_01/ ./current
+	edit .bashrc for users 'wherehoo' and 'root'  or edit /etc/profile to change for all users
+		export PATH=$PATH:/usr/java/current/bin
+
+(How it's done at wherehoo.org, installed from tar file rather than RPM):
+	1. Put the SDK in /usr/jdk1.3.1_01
+	2. ln -s /usr/jdk1.3.1_01 /usr/java
+	3. edit /etc/profile to add 
+			PATH=$PATH:/usr/java/bin:.(etcetera - rest of path)
+
+logout out and back in, and check for Java available at login
+	[jim jim]$ java -version
+	java version "1.3.1_01"
+
+--------------------------------------------------------
+2. Download and install ANT (jakarta.apache.org/ant) 
+	this is optional but ultimately useful for many things
+	
+	download the source, jakarta-ant-1.4.1.src.tar.gz to /tmp
+	cd /tmp
+	tar -zxvf jakarta-ant-1.4.1.src.tar.gz
+	cd jakarta-ant-1.4.1
+
+	export ANT_HOME=/usr/local/ant
+	export JAVA_HOME=/usr/java/current (wherehoo.org: /usr/java)
+	export PATH=${PATH}:${ANT_HOME}/bin
+
+	./build.sh
+	su
+	./build.sh install
+
+--------------------------------------------------------
+3. Download and Install Postgresql to /tmp
+	ftp://ftp3.us.postgresql.org
+	directory: /pub/postgresql/source/v7.1.3
+	
+	cd /tmp
+	tar -zxvf postgresql-7.1.3.tar.gz
+	cd postgresql-7.1.3
+	./configure --with-java --with-perl
+	(wherehoo.org, which already has a postgres running on port 5432, we use:
+		./configure --with-java --with-perl --prefix=/usr/local/pgsql-private --with-pgport=5433 )
+	gmake
+	su
+	/usr/sbin/adduser postgres (wherehoo.org: this user is 'postgres2')
+	gmake install (installs to /usr/local/pgsql)
+	cd /usr/local/pgsql
+	chown postgres * -R
+	chown postgres .
+	su - postgres (wherehoo.org: su - postgres2)
+	
+	CREATE THE DATABASE
+	/usr/local/pgsql/bin/initdb -D /usr/local/pgsql/data
+	(wherehoo.org: 	/usr/local/pgsql-private/bin/initdb -D /usr/local/pgsql-private/data)
+
+	START THE DATABASE WITH TCP/IP AND THE LOG FILE in the data directory
+	/usr/local/pgsql/bin/postmaster -i -D /usr/local/pgsql/data >/usr/local/pgsql/data/logfile 2>&1 &
+	
+	(wherehoo.org: /usr/local/pgsql-private/bin/pg_ctl -o -i -D /usr/local/pgsql-private/data -l /usr/local/pgsql-private/data/logfile start )
+	
+	TEST IT
+	/usr/local/pgsql/bin/createdb test	(wherehoo.org: /usr/local/pgsql-private/bin/createdb test)
+	/usr/local/pgsql/bin/psql test		(wherehoo.org: /usr/local/pgsql-private/bin/psql test)
+
+	supply the 7.1.1 driver to /usr/local/pgsql/share/java/jdbc7.1-1.1.jar
+		sftp jim@wherehoo.media.mit.edu
+		cd /usr/local/pgsql/share/java
+		lcd /tmp
+		get jdbc7.1-1.1.jar
+		cp /tmp/jdbc7.1-1.1.jar /usr/local/pgsql/share/javaq
+
+--------------------------------------------------------
+4. Create the Wherehoo database in the Postgres server
+	A. Fetch the database layout from http://wherehoo.org/server/db/wherehoolayout.tar
+	
+		(to create this file on the source system):
+		su postgres
+		bin/pg_dump -s -Ft wherehoo > wherehoodb.tar  
+
+	B. Create the empty database in the Postgres server
+		su postgres
+		bin/createdb wherehoo
+		bin/pg_restore -d wherehoo /tmp/wherehoodb.tar
+
+--------------------------------------------------------
+5. Install and start the Wherehoo server
+	Retrieve sources from http://wherehoo.org/server/source/current
+	Note: The server needs a fixed IP address with forward/reverse name mappings
+	
+	Put the server in /home/wherehoo or wherever pleases you, and revise
+	the 'whserver' startup script (step 7) to reflect this
+
+--------------------------------------------------------
+6. Make an aliased path to make life happy later
+	for example:
+
+	/home/wherehoo/current -> /home/wherehoo/20011212
+	Then just use the '/current' reference forever and in startup scripts
+
+--------------------------------------------------------
+7. Make or edit startup files
+	Postgres and Wherehoo servers need to be started at boot-time
+	
+	/etc/rc.d/init.d/whserver
+	/etc/rc.d/init.d/postgres
+
+	Samples of these can be retrieved from http://wherehoo.org/server/startup
+
+	/sbin/chkconfig whserver on
+	/sbin/chkconfig postgres on
+
+--------------------------------------------------------
+8. If you want to use the web interface, add PHP + APACHE
+	Get PHP from http://www.php.net
+	Get Apache from http://www.apache.org
+
+	(These instructions are current for Apache 1.3.23 and PHP 4.1.2)
+	Unpack both batches of sources into /usr/local/src
+
+	FIRST MAKE PHP (needs some Apache stubs to compile)
+	cd /usr/local/src/apache_1.3.23
+	./configure
+	cd /usr/local/src/php-4.1.2
+	./configure --with-pgsql --with-apache=../apache_1.3.23
+	make 
+	su
+	make install
+	exit
+
+	NOW MAKE APACHE WITH PHP AND ENABLING DYNAMICALLY LOADED .SO MODULES
+	cd /usr/local/src/apache_1.3.23
+	./configure --activate-module=src/modules/php4/libphp4.a --enable-module=so
+	make
+	su
+	make install
+	exit
+
+	The apache server is now in /usr/local/apache
+	Its config is there in the /usr/local/apache/conf directory
+	Edit /usr/local/apache/conf/httpd.conf to un-comment the two lines for PHP4
+	Bring in everything from the existing /etc/httpd/conf/httpd.conf
+	Also in httpd.conf, setup the "index files" to be:    index.php index.shtml index.html
+
+	Startup is /usr/local/apache/bin/apachectl start
+	Revise /etc/rc.d/init.d/httpd to call to this instead of what it normally does
+	Remove any stray httpd binary and all of /etc/httpd
+
+
+	USING PHP:
+	The sample files are here:
+	http://www.wherehoo.org/php-pages
+		
+		wh_search.php
+			launches a search
+		wh_search_results.php 
+			shows the results of the search (and can open web pages)
+		wh_image.php 
+			can display a JPEG image that results from a search, and shows how
+			to use the PHP large-object functions to fetch binary data from Wherehoo	
+	
+
+	NOTES ABOUT ACCESSING LARGE POSTGRES OBJECTS VIA PHP
+	WRITING [assumes $database=pg_connect("dbname=   "); ]
+
+		pg_exec($database,"begin");
+		$oid = pg_locreate($database);
+		$handle = pg_loopen($database,$oid,"w");
+		pg_lowrite($handle,"large object data");
+		pg_loclose($handle);
+		pg_exec("database","commit");
+
+
+	READING 
+	[assumes $database = pg_connect("dbname= ...") and $oid holds the object ID read from the database]
+	[note - when the large-object field is read from the database, the OID - an integer - is returned -
+	and that's what is used here ot get the real data)	
+		pg_exec($database,"begin");
+		$handle = pg_loopen($database,$oid,"r");
+		$objectData=pg_loread($handle,65535);
+		pg_loclose($handle);
+		pg_exec("database","commit");
+
+--------------------------------------------------------
+OTHER NOTES
+
+How to dump an entire database under Postgres 7.1, including BLOBs, to a tar file
+	pg_dump -Ft -b wherehoo > wherehoodb.tar
+
+How to recover the database at a different host:
+	pg_restore -d wherehoo wherehoodb.tar
+	(wherehoo.org: pg_restore -p 5433 -d wherehoo wherehoodb.tar )
